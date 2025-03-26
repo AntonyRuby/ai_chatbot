@@ -13,8 +13,11 @@ class _ChatScreenState extends State<ChatScreen> {
   final ApiService _apiService = ApiService();
   final SpeechService _speechService = SpeechService();
   final TextEditingController _controller = TextEditingController();
-  final List<Map<String, String>> _messages = []; // Storing sender info & message
+  final List<Map<String, String>> _messages =
+      []; // Storing sender info & message
   bool _isListening = false;
+  bool _isTTSActive = true; // Toggle for TTS functionality
+  bool _isTyping = false; // Typing indicator
 
   @override
   void initState() {
@@ -26,23 +29,33 @@ class _ChatScreenState extends State<ChatScreen> {
     await _speechService.initializeSpeech();
   }
 
+  
   void _sendMessage() async {
     String userInput = _controller.text.trim();
     if (userInput.isNotEmpty) {
       setState(() {
         _messages.add({"sender": "You", "message": userInput});
+        _isTyping = true; // Show typing indicator
+        _isListening = false; // Ensure mic icon resets
       });
       _controller.clear();
+
+      await Future.delayed(Duration(seconds: 1));
 
       try {
         String response = await _apiService.getResponse(userInput);
         setState(() {
           _messages.add({"sender": "AI", "message": response});
+          _isTyping = false; // Hide typing indicator
         });
-        _speechService.speak(response);
+        if (_isTTSActive) {
+          _speechService.speak(response);
+        }
       } catch (e) {
         setState(() {
-          _messages.add({"sender": "AI", "message": "Oops! Something went wrong."});
+          _messages
+              .add({"sender": "AI", "message": "Oops! Something went wrong."});
+          _isTyping = false;
         });
       }
     }
@@ -58,8 +71,8 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _stopListening() async {
-    setState(() => _isListening = false);
     await _speechService.stopListening();
+    setState(() => _isListening = false); // Revert to mic icon
   }
 
   @override
@@ -75,7 +88,8 @@ class _ChatScreenState extends State<ChatScreen> {
               itemBuilder: (context, index) {
                 bool isAI = _messages[index]["sender"] == "AI";
                 return Align(
-                  alignment: isAI ? Alignment.centerLeft : Alignment.centerRight,
+                  alignment:
+                      isAI ? Alignment.centerLeft : Alignment.centerRight,
                   child: Container(
                     margin: const EdgeInsets.symmetric(vertical: 5),
                     padding: const EdgeInsets.all(12),
@@ -83,15 +97,44 @@ class _ChatScreenState extends State<ChatScreen> {
                       color: isAI ? Colors.blue[100] : Colors.green[100],
                       borderRadius: BorderRadius.circular(15),
                     ),
-                    child: Text(
-                      _messages[index]["message"]!,
-                      style: const TextStyle(fontSize: 16),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (isAI) ...[
+                          CircleAvatar(
+                            backgroundColor:
+                                Colors.blue, // Distinct color for AI
+                            child: Icon(Icons.android,
+                                color: Colors.white), // AI Avatar
+                          ),
+                          SizedBox(width: 8),
+                        ],
+                        Text(
+                          _messages[index]["message"]!,
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                        if (!isAI) ...[
+                          SizedBox(width: 8),
+                          CircleAvatar(
+                            backgroundColor:
+                                Colors.green, // Distinct color for User
+                            child: Icon(Icons.person,
+                                color: Colors.white), // User Avatar
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 );
               },
             ),
           ),
+          if (_isTyping) // Typing indicator
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child:
+                  Text("AI is typing...", style: TextStyle(color: Colors.grey)),
+            ),
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Row(
@@ -106,8 +149,9 @@ class _ChatScreenState extends State<ChatScreen> {
                         borderSide: BorderSide.none,
                       ),
                       filled: true,
-                      fillColor: Colors.grey[200], // Better than solid grey
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      fillColor: Colors.grey[200],
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 10),
                     ),
                   ),
                 ),
@@ -116,11 +160,21 @@ class _ChatScreenState extends State<ChatScreen> {
                   onPressed: _sendMessage,
                 ),
                 IconButton(
-                  icon: Icon(_isListening ? Icons.stop : Icons.mic, color: Colors.red),
+                  icon: Icon(_isListening ? Icons.stop : Icons.mic,
+                      color: Colors.red),
                   onPressed: _isListening ? _stopListening : _startListening,
                 ),
               ],
             ),
+          ),
+          SwitchListTile(
+            title: const Text("Enable AI Voice Response"),
+            value: _isTTSActive,
+            onChanged: (value) {
+              setState(() {
+                _isTTSActive = value;
+              });
+            },
           ),
         ],
       ),

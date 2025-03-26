@@ -1,5 +1,5 @@
+import 'package:ai_chatbot_app/chat_screen_updated.dart';
 import 'package:flutter/material.dart';
-import 'chat_screen.dart';
 
 void main() {
   runApp(const AIChatbotApp());
