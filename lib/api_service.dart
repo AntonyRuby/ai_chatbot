@@ -1,4 +1,3 @@
-import 'package:http/http.dart' as http;
 
 class ApiService {
   // This class will handle API calls to Dialogflow or OpenAI

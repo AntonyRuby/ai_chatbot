@@ -37,6 +37,6 @@ class SpeechService {
   }
 
   Future<bool> isSpeechAvailable() async {
-    return await _speech.isAvailable;
+    return _speech.isAvailable;
   }
 }
